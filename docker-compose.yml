@@ -1,86 +1,303 @@
-version: '3.8'
-
 services:
-  influxdb:
-    image: influxdb:latest
-    container_name: influxdb
+
+  broker:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: '${COMPOSE_PROJECT_NAME:-lfc}-broker'
     ports:
-      - "8086:8086"
+      - '${PORT_BROKER:-29092}:29092'
     volumes:
-      - influxdb_data:/var/lib/influxdb
-
-  node_service:
-    build: ./node_service
-    container_name: node_service
-    depends_on:
-      - influxdb
-      - kafka
+      - broker-data:/var/lib/kafka/data
     environment:
-      - INFLUXDB_URL=http://influxdb:8086
-      - KAFKA_BROKER=kafka:9092
+      CLUSTER_ID: '${CLUSTER_ID:-YzUyZWRlYzBhNDkwNDNmNG}'
+      KAFKA_NODE_ID: '1'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:9093'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LISTENERS: 'INTERNAL://broker:9092,EXTERNAL://broker:29092,CONTROLLER://broker:9093'
+      KAFKA_ADVERTISED_LISTENERS: 'INTERNAL://broker:9092,EXTERNAL://localhost:${PORT_BROKER:-29092}'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'INTERNAL'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1' # this and next 3 options set to 1 as we have only one broker
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_LOG4J_ROOT_LOGLEVEL: 'WARN'
+      KAFKA_LOG4J_LOGGERS: "\
+        kafka=WARN,\
+        kafka.controller=WARN,\
+        kafka.log.LogCleaner=WARN,\
+        state.change.logger=WARN,\
+        kafka.producer.async.DefaultEventHandler=WARN"
 
-  kafka:
-    image: confluentinc/cp-kafka:7.0.1
-    container_name: kafka
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_MIN_INSYNC_REPLICAS: 1
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.1
+    container_name: '${COMPOSE_PROJECT_NAME:-lfc}-kafka-ui'
     ports:
-      - "9092:9092"
-      - "9093:9093"
+      - '${PORT_KAFKA_UI:-28080}:8080'
+    depends_on:
+      - broker
+    environment:
+      KAFKA_CLUSTERS_0_NAME: 'BDP_Weather_energy'
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 'broker:9092'
+      LOGGING_LEVEL_ROOT: 'ERROR'
+      LOGGING_LEVEL_COM_PROVECTUS: 'ERROR'
+
+  postgres:
+    image: postgres:16.2-alpine3.19
+    container_name: '${COMPOSE_PROJECT_NAME:-lfc}-postgres'
+    ports:
+      - '${PORT_POSTGRES:-25432}:5432'
     volumes:
-      - kafka_data:/var/lib/kafka/data
-
-  flink_jobmanager:
-    build: ./flink_jobmanager
-    container_name: flink_jobmanager
+      - ./postgres:/docker-entrypoint-initdb.d
+      - postgres-data:/var/lib/postgresql/data
     environment:
-      - JOB_MANAGER_RPC_ADDRESS=flink_jobmanager
-    ports:
-      - "8081:8081"
-    command: jobmanager
-    depends_on:
-      - kafka
+      POSTGRES_DB: 'db'
+      POSTGRES_USER: '${USERID:-user}'
+      POSTGRES_PASSWORD: '${USERPWD:-user}'
 
-  flink_taskmanager:
-    image: flink:latest
-    container_name: flink_taskmanager
+  pgadmin:
+    image: dpage/pgadmin4:8.4
+    container_name: '${COMPOSE_PROJECT_NAME:-lfc}-pgadmin'
     depends_on:
-      - flink_jobmanager
-    command: taskmanager
-
-  sql_db:
-    image: postgres:latest
-    container_name: sql_db
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      - postgres
     ports:
-      - "5432:5432"
+      - '${PORT_PGADMIN:-20080}:80'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./pgadmin4/servers.json:/pgadmin4/servers.json
+      - pgadmin-data:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${USEREMAIL:-user@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${USERPWD:-user}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_DISABLE_POSTFIX: 'true'
+      GUNICORN_ACCESS_LOGFILE: '/dev/null'
 
   grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
+    image: grafana/grafana-oss:10.3.1
+    container_name: '${COMPOSE_PROJECT_NAME:-lfc}-grafana'
     ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - '${PORT_GRAFANA:-23000}:3000'
+    depends_on:
+      - postgres
     volumes:
-      - grafana_data:/var/lib/grafana
+      - grafana-data:/var/lib/grafana
+      - ./grafana:/etc/grafana/provisioning:Z
+    environment:
+      GF_SECURITY_ADMIN_USER: '${USERID:-user}'
+      GF_SECURITY_ADMIN_PASSWORD: '${USERID:-user}'
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: '/etc/grafana/provisioning/dashboards/main.json'
+      GF_USERS_DEFAULT_THEME: 'light'
+      GF_LOG_LEVEL: 'WARN'
+      DB_ADDR: 'postgres:5432'
+      DB_NAME: 'db'
+      DB_USERID: '${USERID:-user}'
+      DB_USERPWD: '${USERPWD:-user}'
+
+  # producer-hydro_w:
+  #   image: 'bdp-project-producer:latest'
+  #   container_name: 'BDP-P-producer-hydro_w'
+  #   depends_on:
+  #     - broker
+  #   command: [ '--bootstrap-servers', 'broker:9092', '--topic', 'energy_weather', '--key', 'hydro_w', '--apiurl', 'https://api.openweathermap.org/data/2.5/onecall?lat=15.5&lon=-90.333333&appid=b0941dea317734e2ce97e02fd8782f8c&units=metric']
+
+
+  # producer-solar_w:
+  #   image: 'bdp-project-producer:latest'
+  #   container_name: 'BDP-P-producer-solar_w'
+  #   depends_on:
+  #     - broker
+  #   command: [ '--bootstrap-servers', 'broker:9092', '--topic', 'energy_weather', '--key', 'solar_w', '--apiurl', 'https://api.openweathermap.org/data/2.5/onecall?lat=14.53611&lon=-91.67778&appid=b0941dea317734e2ce97e02fd8782f8c&units=metric']
+
+  # producer-mall_w:
+  #   image: 'bdp-project-producer:latest'
+  #   container_name: 'BDP-P-producer-mall_w'
+  #   depends_on:
+  #     - broker
+  #   command: [ '--bootstrap-servers', 'broker:9092', '--topic', 'energy_weather', '--key', 'mall_w', '--apiurl', 'https://api.openweathermap.org/data/2.5/onecall?lat=14.97222&lon=-89.53056&appid=b0941dea317734e2ce97e02fd8782f8c&units=metric']
+
+
+  # producer-mall_c:
+  #   image: 'bdp-project-producer-ifx:latest'
+  #   container_name: 'BDP-P-producer-mall_c'
+  #   depends_on:
+  #     - broker
+  #   command: [ '--bootstrap-servers', 'broker:9092', 
+  #              '--topic', 'energy_weather', 
+  #              '--key', 'mall_c', 
+  #              '--influxurl', 'https://us-central1-1.gcp.cloud2.influxdata.com', 
+  #              '--influxtoken', 'qwt4B_P397mDuNmqfZpjM0uAlTXRi_8aTMfxNhQ9w4PXiVu105F05qXbiptWxlR-K91GILML5qKorELJ7f_MTg==', 
+  #              '--influxorg', 'f61a673ffecc6d9b', 
+              #  '--influxquery', 'from(bucket: "TIERRA AZUL")
+              #                     |> range(start: -1d)
+              #                     |> filter(fn: (r) => r["_field"] == "kw_tot")
+              #                     |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+              #                     |> group(columns: ["_measurement"])
+              #                     |> last()
+              #                     |> drop(columns: ["_time"])
+              #                     |> pivot(rowKey:["_field"], columnKey: ["_measurement"], valueColumn: "_value")'
+  #           ]
+
+  # producer-solar_g:
+  #   image: 'bdp-project-producer-ifx:latest'
+  #   container_name: 'BDP-P-producer-solar_g'
+  #   depends_on:
+  #     - broker
+  #   command: [ '--bootstrap-servers', 'broker:9092', 
+  #              '--topic', 'energy_weather', 
+  #              '--key', 'solar_g', 
+  #              '--influxurl', 'https://us-central1-1.gcp.cloud2.influxdata.com', 
+  #              '--influxtoken', 'qwt4B_P397mDuNmqfZpjM0uAlTXRi_8aTMfxNhQ9w4PXiVu105F05qXbiptWxlR-K91GILML5qKorELJ7f_MTg==', 
+  #              '--influxorg', 'f61a673ffecc6d9b', 
+  #              '--influxquery', 'from(bucket: "TRINIDAD REU 01")
+  #                                 |> range(start: -20d)
+  #                                 |> filter(fn: (r) => r["_measurement"] == "MET01")
+  #                                 |> filter(fn: (r) => r["ID"] == "MET01")
+  #                                 |> filter(fn: (r) => r["_field"] == "kW_tot")
+  #                                 |> aggregateWindow(every: 1s, fn: mean, createEmpty: false)
+  #                                 |> group(columns: ["_measurement"])
+  #                                 |> last()
+  #                                 |> drop(columns: ["_time"])
+  #                                 |> pivot(rowKey:["_field"], columnKey: ["_measurement"], valueColumn: "_value")'
+  #           ]
+
+  # producer-hydro_g:
+  #   image: 'bdp-project-producer-ifx:latest'
+  #   container_name: 'BDP-P-producer-hydro_g'
+  #   depends_on:
+  #     - broker
+  #   command: [ '--bootstrap-servers', 'broker:9092', 
+  #              '--topic', 'energy_weather', 
+  #              '--key', 'hydro_g', 
+  #              '--influxurl', 'https://us-central1-1.gcp.cloud2.influxdata.com', 
+  #              '--influxtoken', 'qwt4B_P397mDuNmqfZpjM0uAlTXRi_8aTMfxNhQ9w4PXiVu105F05qXbiptWxlR-K91GILML5qKorELJ7f_MTg==', 
+  #              '--influxorg', 'f61a673ffecc6d9b', 
+  #              '--influxquery', 'from(bucket: "ERC")
+  #                                 |> range(start: -30m)
+  #                                 |> filter(fn: (r) => r["_field"] == "kW_tot")
+  #                                 |> aggregateWindow(every: 31m, fn: mean, createEmpty: false)
+  #                                 |> group(columns: ["_measurement"])
+  #                                 |> last()
+  #                                 |> drop(columns: ["_time"])
+  #                                 |> pivot(rowKey:["_field"], columnKey: ["_measurement"], valueColumn: "_value")'
+  #           ]
+
+
+
+
+  data-producer:
+    build: Producers/producer_data
+    image: 'bdp-project-data-producer:latest'
+    container_name: 'BDP-data-producer'
+    depends_on:
+      - broker
+    command: ['--bootstrap-servers', 'broker:9092', 
+              '--topic_energy', 'energy', 
+              '--topic_weather', 'weather', 
+              '--influxurl', 'https://us-central1-1.gcp.cloud2.influxdata.com', 
+              '--influxtoken', 'qwt4B_P397mDuNmqfZpjM0uAlTXRi_8aTMfxNhQ9w4PXiVu105F05qXbiptWxlR-K91GILML5qKorELJ7f_MTg==', 
+              '--influxorg', 'f61a673ffecc6d9b', 
+              '--id1', 'hydro_g', 
+              '--influxquery1', 'from(bucket: "ERC")
+                                  |> range(start: -30m)
+                                  |> filter(fn: (r) => r["_field"] == "kW_tot")
+                                  |> aggregateWindow(every: 31m, fn: mean, createEmpty: false)
+                                  |> group(columns: ["_measurement"])
+                                  |> last()
+                                  |> drop(columns: ["_start", "_stop", "_field"])
+                                  |> map(fn: (r) => ({ r with place: "hydro",  generation: true, type_gen: "hydro" }))',
+              '--id2', 'solar_g', 
+              '--influxquery2', 'from(bucket: "TRINIDAD REU 01")
+                                  |> range(start: -20d)
+                                  |> filter(fn: (r) => r["_measurement"] == "MET01")
+                                  |> filter(fn: (r) => r["ID"] == "MET01")
+                                  |> filter(fn: (r) => r["_field"] == "kW_tot")
+                                  |> aggregateWindow(every: 1s, fn: mean, createEmpty: false)
+                                  |> group(columns: ["_measurement"])
+                                  |> last()
+                                  |> drop(columns: ["_time"])
+                                  |> map(fn: (r) => ({ r with place: "solar",  generation: true, type_gen: "solar" }))',
+              '--id3', 'mall_c', 
+              '--influxquery3', 'from(bucket: "TIERRA AZUL")
+                                  |> range(start: -1d)
+                                  |> filter(fn: (r) => r["_field"] == "kw_tot")
+                                  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+                                  |> last()
+                                  |> drop(columns: ["_start", "_stop", "_field"])
+                                  |> map(fn: (r) => ({ r with place: "mall",  generation: false, type_gen: "-" }))',
+              '--id4', 'mall', 
+              '--apiurl1', 'https://api.openweathermap.org/data/2.5/onecall?lat=14.97222&lon=-89.53056&appid=b0941dea317734e2ce97e02fd8782f8c&units=metric',
+              '--id5', 'solar', 
+              '--apiurl2', 'https://api.openweathermap.org/data/2.5/onecall?lat=14.53611&lon=-91.67778&appid=b0941dea317734e2ce97e02fd8782f8c&units=metric',
+              '--id6', 'hydro', 
+              '--apiurl3', 'https://api.openweathermap.org/data/2.5/onecall?lat=15.5&lon=-90.333333&appid=b0941dea317734e2ce97e02fd8782f8c&units=metric'
+            ]
+
+
+
+
+
+
+
+
+  #
+  # Flink containers
+  #
+  # They are included only if 'processor-java' or 'processor-python' are part of COMPOSE_PROFILES,
+  # so to run the Java or Python solutions (or your code, dependening on configuration) of this lab
+  # as part of Docker. These two containers create a simple Flink cluster with a Job Manager and
+  # a single Task Manager having (by default) 4 task slots
+  #
+
+  flink-jobmanager:
+    image: ${FLINK_IMAGE:-fracorco/pyflink:1.18.1-scala_2.12-java11}
+    container_name: '${COMPOSE_PROJECT_NAME:-lfc}-flink-jobmanager'
+    ports:
+      - '${PORT_FLINK:-8081}:8081'
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+
+  flink-taskmanager:
+    image: ${FLINK_IMAGE:-fracorco/pyflink:1.18.1-scala_2.12-java11}
+    container_name: '${COMPOSE_PROJECT_NAME:-lfc}-flink-taskmanager'
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: ${FLINK_TASK_SLOTS:-4}
+        parallelism.default: ${FLINK_DEFAULT_PARALLELISM:-1}
+
+  #
+  # Processor submission containers
+  #
+  # One of the following two containers may be activated by including 'processor-java' or 'processor-python'
+  # in COMPOSE_PROFILES. It's better if only one container is run (running both will compute output twice).
+  # Each container consists of a Flink image + the Java or Python code of the processor (see their Dockerfiles)
+  # Each container runs 'flink run ...' to submit the processor job to the flink-jobmanager & flink-taskmanager
+  # cluster created above.
+  #
+
+  processor-python:
+    build:
+      context: processor-python
+      args:
+        FLINK_IMAGE: ${FLINK_IMAGE:-fracorco/pyflink:1.18.1-scala_2.12-java11}
+    image: '${COMPOSE_PROJECT_NAME:-lfc}-processor-python:latest'
+    container_name: '${COMPOSE_PROJECT_NAME:-lfc}-processor-python'
+    depends_on:
+      - flink-jobmanager
+      - broker
+      - postgres
+    environment:
+      PROCESSOR_JOBMANAGER: 'flink-jobmanager:8081'
+      PROCESSOR_IMPLEMENTATION: '${PROCESSOR_PYTHON_FILE:-processor.py}'
+      PROCESSOR_ARGS: '--bootstrap-servers broker:9092 --db-url jdbc:postgresql://postgres:5432/db --db-username ${USERID:-user} --db-password ${USERPWD:-user}'
 
 volumes:
-  influxdb_data:
-  kafka_data:
-  postgres_data:
-  grafana_data:
+  broker-data:
+  postgres-data:
+  pgadmin-data:
+  grafana-data:
