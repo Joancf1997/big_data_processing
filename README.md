@@ -25,20 +25,20 @@ Detailed instructions:
 
 2. clone this repository 
   ```bash
-  $  git clone https://github.com/Joancf1997/big_data_processing.git
-  $  cd big_data_processing
+  git clone https://github.com/Joancf1997/big_data_processing.git
+  cd big_data_processing
   ```
 
 
 3. copy `.env.example` into `.env`:
   ```bash
-  $  cp .env.example .env
+  cp .env.example .env
   ```
 
 4. in a terminal, use Docker Compose to start or stop all the required components (by default, these do not include the processor)
   ```bash
-  $  docker-compose up                        # to start the application.
-  $  docker-compose down -v --remove-orphans  # to stop the application.
+  docker-compose up                        # to start the application.
+  docker-compose down -v --remove-orphans  # to stop the application.
   ```
 
 Once the application is started, the following web UIs can be accessed (default credentials are username=`user`, password=`user`):
