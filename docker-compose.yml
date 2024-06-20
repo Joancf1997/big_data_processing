@@ -93,97 +93,9 @@ services:
       DB_USERID: '${USERID:-user}'
       DB_USERPWD: '${USERPWD:-user}'
 
-  # producer-hydro_w:
-  #   image: 'bdp-project-producer:latest'
-  #   container_name: 'BDP-P-producer-hydro_w'
-  #   depends_on:
-  #     - broker
-  #   command: [ '--bootstrap-servers', 'broker:9092', '--topic', 'energy_weather', '--key', 'hydro_w', '--apiurl', 'https://api.openweathermap.org/data/2.5/onecall?lat=15.5&lon=-90.333333&appid=b0941dea317734e2ce97e02fd8782f8c&units=metric']
 
-
-  # producer-solar_w:
-  #   image: 'bdp-project-producer:latest'
-  #   container_name: 'BDP-P-producer-solar_w'
-  #   depends_on:
-  #     - broker
-  #   command: [ '--bootstrap-servers', 'broker:9092', '--topic', 'energy_weather', '--key', 'solar_w', '--apiurl', 'https://api.openweathermap.org/data/2.5/onecall?lat=14.53611&lon=-91.67778&appid=b0941dea317734e2ce97e02fd8782f8c&units=metric']
-
-  # producer-mall_w:
-  #   image: 'bdp-project-producer:latest'
-  #   container_name: 'BDP-P-producer-mall_w'
-  #   depends_on:
-  #     - broker
-  #   command: [ '--bootstrap-servers', 'broker:9092', '--topic', 'energy_weather', '--key', 'mall_w', '--apiurl', 'https://api.openweathermap.org/data/2.5/onecall?lat=14.97222&lon=-89.53056&appid=b0941dea317734e2ce97e02fd8782f8c&units=metric']
-
-
-  # producer-mall_c:
-  #   image: 'bdp-project-producer-ifx:latest'
-  #   container_name: 'BDP-P-producer-mall_c'
-  #   depends_on:
-  #     - broker
-  #   command: [ '--bootstrap-servers', 'broker:9092', 
-  #              '--topic', 'energy_weather', 
-  #              '--key', 'mall_c', 
-  #              '--influxurl', 'https://us-central1-1.gcp.cloud2.influxdata.com', 
-  #              '--influxtoken', 'qwt4B_P397mDuNmqfZpjM0uAlTXRi_8aTMfxNhQ9w4PXiVu105F05qXbiptWxlR-K91GILML5qKorELJ7f_MTg==', 
-  #              '--influxorg', 'f61a673ffecc6d9b', 
-              #  '--influxquery', 'from(bucket: "TIERRA AZUL")
-              #                     |> range(start: -1d)
-              #                     |> filter(fn: (r) => r["_field"] == "kw_tot")
-              #                     |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
-              #                     |> group(columns: ["_measurement"])
-              #                     |> last()
-              #                     |> drop(columns: ["_time"])
-              #                     |> pivot(rowKey:["_field"], columnKey: ["_measurement"], valueColumn: "_value")'
-  #           ]
-
-  # producer-solar_g:
-  #   image: 'bdp-project-producer-ifx:latest'
-  #   container_name: 'BDP-P-producer-solar_g'
-  #   depends_on:
-  #     - broker
-  #   command: [ '--bootstrap-servers', 'broker:9092', 
-  #              '--topic', 'energy_weather', 
-  #              '--key', 'solar_g', 
-  #              '--influxurl', 'https://us-central1-1.gcp.cloud2.influxdata.com', 
-  #              '--influxtoken', 'qwt4B_P397mDuNmqfZpjM0uAlTXRi_8aTMfxNhQ9w4PXiVu105F05qXbiptWxlR-K91GILML5qKorELJ7f_MTg==', 
-  #              '--influxorg', 'f61a673ffecc6d9b', 
-  #              '--influxquery', 'from(bucket: "TRINIDAD REU 01")
-  #                                 |> range(start: -20d)
-  #                                 |> filter(fn: (r) => r["_measurement"] == "MET01")
-  #                                 |> filter(fn: (r) => r["ID"] == "MET01")
-  #                                 |> filter(fn: (r) => r["_field"] == "kW_tot")
-  #                                 |> aggregateWindow(every: 1s, fn: mean, createEmpty: false)
-  #                                 |> group(columns: ["_measurement"])
-  #                                 |> last()
-  #                                 |> drop(columns: ["_time"])
-  #                                 |> pivot(rowKey:["_field"], columnKey: ["_measurement"], valueColumn: "_value")'
-  #           ]
-
-  # producer-hydro_g:
-  #   image: 'bdp-project-producer-ifx:latest'
-  #   container_name: 'BDP-P-producer-hydro_g'
-  #   depends_on:
-  #     - broker
-  #   command: [ '--bootstrap-servers', 'broker:9092', 
-  #              '--topic', 'energy_weather', 
-  #              '--key', 'hydro_g', 
-  #              '--influxurl', 'https://us-central1-1.gcp.cloud2.influxdata.com', 
-  #              '--influxtoken', 'qwt4B_P397mDuNmqfZpjM0uAlTXRi_8aTMfxNhQ9w4PXiVu105F05qXbiptWxlR-K91GILML5qKorELJ7f_MTg==', 
-  #              '--influxorg', 'f61a673ffecc6d9b', 
-  #              '--influxquery', 'from(bucket: "ERC")
-  #                                 |> range(start: -30m)
-  #                                 |> filter(fn: (r) => r["_field"] == "kW_tot")
-  #                                 |> aggregateWindow(every: 31m, fn: mean, createEmpty: false)
-  #                                 |> group(columns: ["_measurement"])
-  #                                 |> last()
-  #                                 |> drop(columns: ["_time"])
-  #                                 |> pivot(rowKey:["_field"], columnKey: ["_measurement"], valueColumn: "_value")'
-  #           ]
-
-
-
-
+  # Data Producer from all different data sources 
+  # -- Weather API and Influxdb
   data-producer:
     build: Producers/producer_data
     image: 'bdp-project-data-producer:latest'
@@ -233,21 +145,7 @@ services:
             ]
 
 
-
-
-
-
-
-
-  #
   # Flink containers
-  #
-  # They are included only if 'processor-java' or 'processor-python' are part of COMPOSE_PROFILES,
-  # so to run the Java or Python solutions (or your code, dependening on configuration) of this lab
-  # as part of Docker. These two containers create a simple Flink cluster with a Job Manager and
-  # a single Task Manager having (by default) 4 task slots
-  #
-
   flink-jobmanager:
     image: ${FLINK_IMAGE:-fracorco/pyflink:1.18.1-scala_2.12-java11}
     container_name: '${COMPOSE_PROJECT_NAME:-lfc}-flink-jobmanager'
@@ -270,16 +168,8 @@ services:
         taskmanager.numberOfTaskSlots: ${FLINK_TASK_SLOTS:-4}
         parallelism.default: ${FLINK_DEFAULT_PARALLELISM:-1}
 
-  #
-  # Processor submission containers
-  #
-  # One of the following two containers may be activated by including 'processor-java' or 'processor-python'
-  # in COMPOSE_PROFILES. It's better if only one container is run (running both will compute output twice).
-  # Each container consists of a Flink image + the Java or Python code of the processor (see their Dockerfiles)
-  # Each container runs 'flink run ...' to submit the processor job to the flink-jobmanager & flink-taskmanager
-  # cluster created above.
-  #
 
+  # Processor submission containers
   processor-python:
     build:
       context: processor-python
