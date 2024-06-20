@@ -130,7 +130,7 @@ def main():
         ) WITH ( { get_output_connector_config(args, "weather_data") } )
     """)
     # Define the query to populate table 'weather_data' - Detail info per point
-    consumption_points = tenv.sql_query("""
+    weather_points = tenv.sql_query("""
         SELECT  `ts` AS `time_stamp`,
                 `place` as place,
                 `temp` as temp,
@@ -139,7 +139,7 @@ def main():
                 `clouds` as clouds
         FROM     TABLE(TUMBLE(TABLE `weather_record`, DESCRIPTOR(ts), INTERVAL '1' MINUTES))
     """)
-    statements_to_execute.add_insert("weather_data", consumption_points)     # Run query for point_data
+    statements_to_execute.add_insert("weather_data", weather_points)     # Run query for point_data
 
 
 
@@ -222,7 +222,11 @@ def main():
             e.place AS place,
             (AVG(e.kwh_cons) / AVG(w.temp)) AS kwh_cons_degree,
             SUM(CASE WHEN raining_prob = 'Rain' THEN kwh_prod ELSE 0 END) AS kwh_prod_with_rain_prob,
-            SUM(CASE WHEN NOT raining_prob = 'Rain' THEN kwh_prod ELSE 0 END) AS kwh_prod_with_no_rain_prob
+            SUM(CASE WHEN NOT raining_prob = 'Rain' THEN kwh_prod ELSE 0 END) AS kwh_prod_with_no_rain_prob,
+            AVG(temp) AS temp,
+            AVG(dew_point) AS dew_point,
+            AVG(uvi) AS uvi,
+            AVG(clouds) AS clouds
         FROM energy_window e
         JOIN weather_window w
         ON e.place = w.place AND e.window_start = w.window_start

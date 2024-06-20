@@ -9,17 +9,6 @@ CREATE TABLE point_data (
   PRIMARY KEY (time_stamp, place, id)
 );
 
-
-CREATE TABLE energy_volume (
-  ts_start TIMESTAMP,
-  ts_end TIMESTAMP,
-  place VARCHAR,
-  type_volume VARCHAR,
-  total_kwh DOUBLE PRECISION,
-  PRIMARY KEY (ts_start, ts_end, type_volume)
-);
-
-
 -- Data from the three positions
 CREATE TABLE weather_data (
   time_stamp TIMESTAMP WITH TIME ZONE,
