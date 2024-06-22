@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -18,21 +21,30 @@
       }
     ]
   },
+  "description": "Dashboard for analysing the energy and weather insights.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1651751762704,
   "links": [],
   "liveNow": false,
   "panels": [
     {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "description": "Amount of energy generation for each generator of the hydroelectric plant",
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "blue",
             "mode": "fixed"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -44,9 +56,17 @@
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "dash": [
+                10,
+                10
+              ],
+              "fill": "dash"
+            },
+            "lineWidth": 1,
+            "pointSize": 6,
             "scaleDistribution": {
               "type": "linear"
             },
@@ -67,44 +87,31 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 24,
+        "h": 7,
+        "w": 12,
         "x": 0,
         "y": 0
       },
       "id": 3,
       "options": {
-        "candleStyle": "candles",
-        "colorStrategy": "open-close",
-        "colors": {
-          "down": "red",
-          "up": "green"
-        },
-        "fields": {
-          "close": "price_close",
-          "high": "price_max",
-          "low": "price_min",
-          "open": "price_open",
-          "volume": "volume"
-        },
-        "includeAllFields": false,
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "mode": "candles"
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
       "targets": [
         {
@@ -112,11 +119,12 @@
             "type": "postgres",
             "uid": "postgres"
           },
-          "format": "time_series",
+          "editorMode": "code",
+          "format": "table",
           "group": [],
           "metricColumn": "none",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  ts_end AS \"time\",\n  price_open,\n  price_close,\n  price_min,\n  price_max,\n  volume\nFROM candlesticks\nWHERE\n  currency_pair = '$currency_pair'\nORDER BY 1",
+          "rawQuery": true,
+          "rawSql": "WITH latest_dates AS (\n    SELECT DISTINCT DATE(time_stamp) AS day\n    FROM point_data\n    ORDER BY day DESC\n    LIMIT 3\n)\nSELECT\t\n\ttime_stamp,\n\tkwh\nFROM point_data\nWHERE DATE(time_stamp) IN (SELECT day FROM latest_dates)\nAND place = 'hydro'\nAND id = '$Hydro_generator_id' \nORDER BY time_stamp DESC;\n",
           "refId": "A",
           "select": [
             [
@@ -160,6 +168,23 @@
               }
             ]
           ],
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
           "table": "candlesticks",
           "timeColumn": "ts_end",
           "timeColumnType": "timestamp",
@@ -177,29 +202,51 @@
           ]
         }
       ],
-      "type": "candlestick"
+      "title": "Hydroelectric Source Energy Generation",
+      "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "description": "Energy consumption in general from the mall",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "light-yellow",
+            "fixedColor": "yellow",
             "mode": "fixed"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "axisSoftMin": 0,
-            "fillOpacity": 80,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
             "lineWidth": 1,
+            "pointSize": 10,
             "scaleDistribution": {
               "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
           },
           "mappings": [],
@@ -209,41 +256,31 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 24,
-        "x": 0,
-        "y": 8
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 0
       },
       "id": 4,
       "options": {
-        "barRadius": 0,
-        "barWidth": 0.97,
-        "groupWidth": 0.7,
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "orientation": "auto",
-        "showValue": "never",
-        "stacking": "none",
         "tooltip": {
           "mode": "single",
           "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
+        }
       },
       "targets": [
         {
@@ -251,11 +288,12 @@
             "type": "postgres",
             "uid": "postgres"
           },
-          "format": "time_series",
+          "editorMode": "code",
+          "format": "table",
           "group": [],
           "metricColumn": "none",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  ts_end AS \"time\",\n  volume_buy\nFROM volumes\nWHERE\n  $__timeFilter(ts_end) AND\n  currency_pair = '$currency_pair'\nORDER BY 1",
+          "rawQuery": true,
+          "rawSql": "SELECT\t\n\ttime_stamp,\n\tsum(kwh)\nFROM point_data\nWHERE generation = false\nGROUP BY time_stamp\nORDER BY time_stamp DESC;",
           "refId": "A",
           "select": [
             [
@@ -267,6 +305,23 @@
               }
             ]
           ],
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
           "table": "volumes",
           "timeColumn": "ts_end",
           "timeColumnType": "timestamptz",
@@ -289,19 +344,190 @@
           ]
         }
       ],
-      "type": "barchart"
+      "title": "Energy Consumption MALL",
+      "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "description": "Las recorded weather conditions for the hydroelectric station ",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "semi-dark-yellow",
-            "mode": "fixed"
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 6,
+        "x": 0,
+        "y": 7
+      },
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "select \n\ttime_stamp,\n\ttemp as Temperature,\n\tdew_point as DewPoint, \n\tuvi as UVI,\n\tclouds as CLOUDS\nfrom weather_data\nwhere place = 'hydro'\nLIMIT 1",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Weather Conditions - Hydroelectric",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "description": "Las recorded weather conditions for the mall ",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 6,
+        "x": 6,
+        "y": 7
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "select \n\ttime_stamp,\n\ttemp as Temperature,\n\tdew_point as DewPoint, \n\tuvi as UVI,\n\tclouds as CLOUDS\nfrom weather_data\nwhere place = 'mall'\nLIMIT 1",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Weather Conditions - MALL",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "description": "Energy Generated vs Energy consumed from the last 30 mins ",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "",
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "kwh",
             "axisPlacement": "auto",
-            "axisSoftMin": 0,
             "fillOpacity": 80,
             "gradientMode": "none",
             "hideFrom": {
@@ -309,10 +535,354 @@
               "tooltip": false,
               "viz": false
             },
-            "lineWidth": 1,
+            "lineWidth": 2,
             "scaleDistribution": {
               "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
+      "id": 5,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT \n\thour_group,\n\tkwh_prod as Produced,\n\tkwh_cons as Consumed\nFROM energy_analytics\nORDER BY hour_group DESC\nLIMIT 3\n",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [
+                  {
+                    "name": "kwh_prod",
+                    "type": "functionParameter"
+                  }
+                ],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
+          "table": "energy_analytics"
+        }
+      ],
+      "title": "Energy Generated vs Energy consumed",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "description": "KWH consumed per temp degree",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 10
+      },
+      "id": 9,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "select \n\tAVG(kwh_cons_degree) as kwh_consumed_per_degree\nfrom energy_weather_analytics\n",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "KWH consumed per temp degree",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "description": "KWH produced with rain prob. Rain prob is when temp < dew_point",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 4,
+        "y": 10
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "select \n\tAVG(kwh_prod_with_rain_prob) as kwh_prod_with_rain_prob,\n\tAVG(kwh_prod_with_no_rain_prob) as kwh_prod_with_no_rain_prob\nfrom energy_weather_analytics\n",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "KWH produced with rain probability",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "description": "Ratio of coverage from the energy generated vs energy consumed.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 9,
+        "y": 10
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT \n\thour_group,\n\tratio\nFROM energy_analytics\nORDER BY hour_group DESC\nLIMIT 1",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Actual Ratio of coverage",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -327,118 +897,199 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 6,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 15
       },
-      "id": 5,
+      "id": 11,
       "options": {
-        "barRadius": 0,
-        "barWidth": 0.97,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "orientation": "auto",
-        "showValue": "never",
-        "stacking": "none",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
+        "showHeader": true
       },
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
+            "type": "grafana-postgresql-datasource",
             "uid": "postgres"
           },
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  ts_end AS \"time\",\n  volume_sell\nFROM volumes\nWHERE\n  $__timeFilter(ts_end) AND\n  currency_pair = '$currency_pair'\nORDER BY 1",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "select \n\tDATE_PART('hour', time_stamp) AS hour,\n\tavg(temp) as temp,\n\tavg(dew_point) as dew_point,\n\tavg(uvi) as uvi,\n\tavg(clouds) as clouds,\n\tavg(kwh_prod) as kwh_production,\n\tavg(kwh_cons) as kwh_consumed\nfrom weather_data\ninner join energy_analytics\non DATE_PART('hour', time_stamp) = DATE_PART('hour', hour_group)\nwhere place = 'mall'\ngroup by DATE_PART('hour', time_stamp)",
           "refId": "A",
-          "select": [
-            [
+          "sql": {
+            "columns": [
               {
-                "params": [
-                  "volume_sell"
-                ],
-                "type": "column"
+                "parameters": [],
+                "type": "function"
               }
-            ]
-          ],
-          "table": "volumes",
-          "timeColumn": "ts_end",
-          "timeColumnType": "timestamptz",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            },
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "currency_pair",
-                "=",
-                "'$currency_pair'"
-              ],
-              "type": "expression"
-            }
-          ]
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
-      "type": "barchart"
+      "title": "Temperature vs weather hourly",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "id": 12,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "10.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH daily_energy AS (\n    SELECT \n        DATE_TRUNC('day', hour_group) AS day,\n        SUM(kwh_cons) AS total_kwh_consumed,\n        SUM(kwh_prod) AS total_kwh_produced\n    FROM \n        energy_analytics\n    GROUP BY \n        DATE_TRUNC('day', hour_group)\n)\nSELECT \n    current.day AS current_day,\n    current.total_kwh_consumed AS current_kwh_consumed,\n    previous.total_kwh_consumed AS previous_kwh_consumed,\n    (current.total_kwh_consumed - previous.total_kwh_consumed) AS consumption_difference,\n\tCASE \n\t\tWHEN (current.total_kwh_consumed - previous.total_kwh_consumed) > 0 THEN 'INCREASE'\n\t\tELSE 'DECREASE'\n\tEND AS consumption_difference_label,\n    current.total_kwh_produced AS current_kwh_produced,\n    previous.total_kwh_produced AS previous_kwh_produced,\n    (current.total_kwh_produced - previous.total_kwh_produced) AS production_difference,\n\tCASE \n\t\tWHEN (current.total_kwh_produced - previous.total_kwh_produced) > 0 THEN 'INCREASE'\n\t\tELSE 'DECREASE'\n\tEND AS production_difference_label\nFROM \n    daily_energy current\nLEFT JOIN \n    daily_energy previous\nON current.day = previous.day + INTERVAL '1 day'\nORDER BY \n    current.day;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Daily change in production and consumption",
+      "type": "table"
     }
   ],
-  "refresh": "30s",
-  "schemaVersion": 35,
-  "style": "dark",
+  "refresh": "",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "bitcoin / united-states-dollar",
-          "value": "bitcoin / united-states-dollar"
+          "selected": false,
+          "text": "GENERADOR 2",
+          "value": "GENERADOR 2"
         },
-        "definition": "SELECT DISTINCT currency_pair FROM candlesticks",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "postgres"
+        },
+        "definition": "select DISTINCT(id)\nfrom point_data\nwhere place = 'hydro'\ngroup by id\n",
         "hide": 0,
         "includeAll": false,
+        "label": "Generator ID",
         "multi": false,
-        "name": "currency_pair",
+        "name": "Hydro_generator_id",
         "options": [],
-        "query": "SELECT DISTINCT currency_pair FROM candlesticks",
+        "query": "select DISTINCT(id)\nfrom point_data\nwhere place = 'hydro'\ngroup by id\n",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 1,
+        "sort": 2,
         "type": "query"
       }
     ]
   },
   "time": {
-    "from": "now-30m",
-    "to": "now"
+    "from": "2024-06-18T16:16:14.098Z",
+    "to": "2024-06-20T13:13:36.146Z"
   },
-  "timepicker": {},
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
   "timezone": "",
-  "title": "prices",
+  "title": "Energy - Weather",
   "uid": "prices",
-  "version": 13,
+  "version": 18,
   "weekStart": ""
 }
